@@ -14,6 +14,7 @@ document.onmousemove = (e) => {
 }
 
 ctx.imageSmoothingEnabled = false
+ctx.font = "40px Arial"
 
 
 const COLOUR_BG = "#000"
@@ -243,7 +244,8 @@ class Player {
 
 	    this.maxHealth = 3
 	    this.health = this.maxHealth
-	    this.invulnTimer=0
+	    this.invulnTimer = 0
+        this.score = 0
 
 	    this.lasers = []
 	    this.canShoot = true
@@ -265,6 +267,13 @@ class Player {
 	    })
 	    this.healthBar.draw()
 	    this.powerBar.draw()
+
+        ctx.textAlign = "left"
+        ctx.font = "40px Arial"
+        ctx.fillStyle = "white"
+        ctx.fillText(this.score, 20,60)
+        ctx.strokeStyle = "black"
+        ctx.strokeText(this.score, 20,60)
     }
 
     update() {
@@ -309,9 +318,23 @@ class Game {
 	    this.enemies = []
 	    this.particles = []
 	    this.bglayers = [new Paralax("bg0",0,0,c.width,c.height,0.5), new Paralax("bg1",0,0,c.width,c.height,0.75)]
+        this.hiscore = this.getHiScore()
 
 	    this.gamestate = "playing"
     }
+
+    getHiScore() {
+        let score = localStorage.getItem("hiscore")
+        if (score)
+            return score
+        else
+            return 0
+    }
+
+    setHiScore(newScore) {
+        localStorage.setItem("hiscore", newScore)
+    }
+
 
     draw() {
 	    if (!input.isDown("q")) {
@@ -322,6 +345,13 @@ class Game {
 	    this.enemies.forEach(e=>{e.draw()})
 	    this.particles.forEach(e=>{e.draw()})
 
+        ctx.textAlign = "right"
+        ctx.font = "Arial 20px"
+        ctx.fillStyle = "white"
+        ctx.fillText(`Hi-Score: ${this.hiscore}`, c.width-20, 60)
+        ctx.strokeStyle = "black"
+        ctx.strokeText(`Hi-Score: ${this.hiscore}`, c.width-20, 60)
+
 	    if (this.gamestate === "gameover")
 	        drawImage("gameover",c.width/2,c.height/2,256,128,true)
     }
@@ -331,8 +361,11 @@ class Game {
 	    this.particles.forEach(e=>{e.update()})
 	    this.bglayers.forEach(e=>{e.update()})
 
-	    if (this.player.health <= 0)
+	    if (this.player.health <= 0) {
 	        this.gamestate = "gameover"
+            if (this.player.score > this.hiscore)
+                this.setHiScore(this.player.score)
+        }
 
 	    if (rngInt(ENEMY_SPAWN_CHANCE) === 0) {
 	        this.enemies.push(new Enemy(
@@ -345,6 +378,7 @@ class Game {
 	    }
 
 	    for (let i=0; i<this.enemies.length; i++) {
+            // Player enemy collide
 	        if (collideRectRect(this.enemies[i].x,this.enemies[i].y,this.enemies[i].w,this.enemies[i].h,
 				                this.player.x,this.player.y,this.player.w,this.player.h)&& !this.player.invuln) {
 		        this.player.health--
@@ -359,6 +393,7 @@ class Game {
 		            i--
 	        }
 
+            // Laser update and collide
 	        this.player.lasers.forEach((e,i2)=>{
 		        if (rngInt(PARTICLE_LASER_CHANCE)===0)
 		            this.particles.push(new Particle("laserpart",e.x+e.w/2,e.y+e.h/2,8,8,0.5,0.5,rng(5),500))
@@ -366,15 +401,19 @@ class Game {
 		            if (collideRectRect(e.x,e.y,e.w,e.h,this.enemies[i].x,this.enemies[i].y,this.enemies[i].w,this.enemies[i].h)) {
 			            //this.enemies[i].ded=true
 			            let enemy = this.enemies[i]
+
 			            this.particles.push(new Particle("explosion", enemy.x,enemy.y,enemy.w,enemy.h,0,0,rngInt(2),3000,-1))
 			            let justincase = rng(3)+3
 			            for (let i=0; i<justincase; i++) {
 			                this.particles.push(new Particle("smoke", enemy.x,enemy.y,enemy.w/2,enemy.h/2,1,1,rngInt(5),3500,-1))
 			            }
+
 			            this.enemies.splice(i,1)
 			            this.player.lasers.splice(i2,1)
 			            if (i > 0)
 			                i--
+
+                        this.player.score++
 		            }
 		        }
 	        })
